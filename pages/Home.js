@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react"; // Langkah 1
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { 
   View, 
   Text, 
@@ -7,61 +7,68 @@ import {
   TouchableOpacity, 
   ScrollView, 
   FlatList, 
-  Alert // Tambahkan Alert sesuai Langkah 1
+  Alert,
+  TextInput
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 
-// Langkah 2: Pindahkan data statis ke atas sebelum komponen Home
 const initialHistory = [
-  { id: "1", course: "Web Programming", date: "2026-03-01", status: "Present" },
+  { id: "1", course: "Web Programming", date: "2026-03-01", status: "Absent" },
   { id: "2", course: "Database System", date: "2026-03-02", status: "Present" },
 ];
 
 const Home = () => {
-  // Langkah 2: State management
   const [historyData, setHistoryData] = useState(initialHistory);
   const [isCheckedIn, setIsCheckedIn] = useState(false);
   const [currentTime, setCurrentTime] = useState('Memuat jam...');
+  const [note, setNote] = useState('');
+  const noteInputRef = useRef(null);
 
-  // Langkah 3: useEffect untuk Jam Real-time
+  // Statistik dengan useMemo
+  const attendanceStats = useMemo(() => {
+    console.log("Menghitung ulang statistik kehadiran...");
+    const presentCount = historyData.filter(item => item.status === 'Present').length;
+    const absentCount = historyData.filter(item => item.status === 'Absent').length;
+    return { totalPresent: presentCount, totalAbsent: absentCount };
+  }, [historyData]);
+
+  // Jam realtime
   useEffect(() => {
     const timer = setInterval(() => {
       const timeString = new Date().toLocaleTimeString('id-ID', {
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
+        hour: '2-digit', minute: '2-digit', second: '2-digit'
       });
       setCurrentTime(timeString);
     }, 1000);
-
-    // Cleanup: Mematikan timer jika layar ditutup
     return () => clearInterval(timer);
   }, []);
 
-  // Langkah 4: Logika Tombol Check-In
+  // Handle Check In
   const handleCheckIn = () => {
-    if (isCheckedIn) {
-      Alert.alert("Perhatian", "Anda sudah melakukan Check In untuk kelas ini.");
+    if (isCheckedIn) return;
+
+    if (note.trim() === '') {
+      Alert.alert("Peringatan", "Catatan kehadiran wajib diisi!");
+      noteInputRef.current.focus();
       return;
     }
 
-    // 1. Buat data presensi baru
+    const now = new Date();
+    const tanggal = `${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear()}`;
+
     const newAttendance = {
-      id: Date.now().toString(), // ID unik dari timestamp
+      id: Date.now().toString(),
       course: "Mobile Programming",
-      date: new Date().toLocaleDateString('id-ID'), // Tanggal hari ini
-      status: "Present"
+      date: tanggal,
+      status: "Present",
+      note: note
     };
 
-    // 2. Masukkan ke urutan paling atas daftar history
     setHistoryData([newAttendance, ...historyData]);
-
-    // 3. Kunci tombol
     setIsCheckedIn(true);
     Alert.alert("Sukses", `Berhasil Check In pada pukul ${currentTime}`);
   };
 
-  // Render Item untuk FlatList
   const renderItem = ({ item }) => (
     <View style={styles.item}>
       <View>
@@ -69,11 +76,6 @@ const Home = () => {
         <Text style={styles.date}>{item.date}</Text>
       </View>
       <View style={styles.statusContainer}>
-        <MaterialIcons
-          name={item.status === "Present" ? "check-circle" : "cancel"}
-          size={20}
-          color={item.status === "Present" ? "green" : "red"}
-        />
         <Text style={item.status === "Present" ? styles.present : styles.absent}>
           {item.status}
         </Text>
@@ -84,8 +86,8 @@ const Home = () => {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
-        
-        {/* Langkah 5: Update UI Header */}
+
+        {/* Header */}
         <View style={styles.headerRow}>
           <Text style={styles.title}>Attendance App</Text>
           <Text style={styles.clockText}>{currentTime}</Text>
@@ -110,26 +112,43 @@ const Home = () => {
           <Text>08:00 - 10:00</Text>
           <Text>Lab 3</Text>
 
-          {/* Langkah 5: Modifikasi Tombol Check In */}
+          {/* Input Catatan — hanya muncul sebelum check in */}
+          {!isCheckedIn && (
+            <TextInput
+              ref={noteInputRef}
+              style={styles.inputCatatan}
+              placeholder="Tulis catatan (cth: Hadir lab)"
+              value={note}
+              onChangeText={setNote}
+            />
+          )}
+
           <TouchableOpacity
-            style={[
-              styles.button, 
-              isCheckedIn ? styles.buttonDisabled : styles.buttonActive
-            ]}
+            style={[styles.button, isCheckedIn ? styles.buttonDisabled : styles.buttonActive]}
             onPress={handleCheckIn}
             disabled={isCheckedIn}
           >
-            <Text style={styles.buttonText}>
-              {isCheckedIn ? 'CHECKED IN' : 'CHECK IN'}
-            </Text>
+            <Text style={styles.buttonText}>{isCheckedIn ? 'CHECKED IN' : 'CHECK IN'}</Text>
           </TouchableOpacity>
         </View>
 
-        {/* History */}
+        {/* Statistik useMemo */}
+        <View style={styles.statsCard}>
+          <View style={styles.statBox}>
+            <Text style={styles.statNumber}>{attendanceStats.totalPresent}</Text>
+            <Text style={styles.statLabel}>Total Present</Text>
+          </View>
+          <View style={styles.statBox}>
+            <Text style={[styles.statNumber, { color: 'red' }]}>{attendanceStats.totalAbsent}</Text>
+            <Text style={styles.statLabel}>Total Absent</Text>
+          </View>
+        </View>
+
+        {/* Attendance History */}
         <View style={styles.classCard}>
           <Text style={styles.subtitle}>Attendance History</Text>
           <FlatList
-            data={historyData} // Menggunakan data dari State
+            data={historyData}
             keyExtractor={(item) => item.id}
             renderItem={renderItem}
             scrollEnabled={false}
@@ -141,51 +160,60 @@ const Home = () => {
   );
 };
 
-// Langkah 6: Styling
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F5F5F5" },
   content: { padding: 20, paddingBottom: 40 },
-  headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
   title: { fontSize: 24, fontWeight: "bold" },
-  clockText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#007AFF',
-    fontVariant: ['tabular-nums'],
+  clockText: { fontSize: 16, fontWeight: 'bold', color: '#007AFF' },
+  card: { 
+    flexDirection: "row", 
+    backgroundColor: "white", 
+    padding: 15, 
+    borderRadius: 10, 
+    marginBottom: 20,
+    alignItems: 'center'
   },
-  card: {
-    flexDirection: "row",
-    backgroundColor: "white",
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 20
-  },
-  icon: {
-    width: 60, height: 60, borderRadius: 30,
-    backgroundColor: "#eee", alignItems: "center", justifyContent: "center",
-    marginRight: 15
+  icon: { 
+    width: 60, height: 60, borderRadius: 30, 
+    backgroundColor: "#eee", alignItems: "center", 
+    justifyContent: "center", marginRight: 15 
   },
   name: { fontSize: 18, fontWeight: "bold" },
   classCard: { backgroundColor: "white", padding: 15, borderRadius: 10, marginBottom: 20 },
   subtitle: { fontSize: 18, fontWeight: "bold", marginBottom: 10 },
-  button: { marginTop: 10, padding: 12, borderRadius: 8, alignItems: "center" },
+  inputCatatan: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    padding: 10,
+    marginTop: 15,
+    backgroundColor: '#fafafa',
+  },
+  statsCard: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    backgroundColor: 'white',
+    padding: 15,
+    borderRadius: 10,
+    marginBottom: 20,
+  },
+  statBox: { alignItems: 'center' },
+  statNumber: { fontSize: 24, fontWeight: 'bold', color: 'green' },
+  statLabel: { fontSize: 14, color: 'gray' },
+  button: { marginTop: 15, padding: 12, borderRadius: 8, alignItems: "center" },
   buttonActive: { backgroundColor: "#007AFF" },
   buttonDisabled: { backgroundColor: "#A0C4FF" },
   buttonText: { color: "white", fontWeight: "bold" },
-  item: {
-    flexDirection: "row", justifyContent: "space-between",
-    backgroundColor: "#f9f9f9", padding: 12, borderRadius: 8, marginBottom: 8
+  item: { 
+    flexDirection: "row", justifyContent: "space-between", 
+    paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#eee' 
   },
   statusContainer: { flexDirection: "row", alignItems: "center" },
   course: { fontSize: 16 },
   date: { fontSize: 12, color: "gray" },
-  present: { color: "green", fontWeight: "bold", marginLeft: 5 },
-  absent: { color: "red", fontWeight: "bold", marginLeft: 5 },
+  present: { color: "green", fontWeight: "bold" },
+  absent: { color: "red", fontWeight: "bold" },
 });
 
 export default Home;
