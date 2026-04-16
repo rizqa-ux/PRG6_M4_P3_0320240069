@@ -1,87 +1,50 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
-import { 
-  View, 
-  Text, 
-  SafeAreaView, 
-  StyleSheet, 
-  TouchableOpacity, 
-  ScrollView, 
-  FlatList, 
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useRef
+} from "react";
+import { View, Text, SafeAreaView, StyleSheet,
+  TouchableOpacity,
+  ScrollView,
   Alert,
   TextInput
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 
-const initialHistory = [
-  { id: "1", course: "Web Programming", date: "2026-03-01", status: "Absent" },
-  { id: "2", course: "Database System", date: "2026-03-02", status: "Present" },
-];
-
-const Home = () => {
-  const [historyData, setHistoryData] = useState(initialHistory);
+const HomeScreen = () => {
+  // 2. STATE UNTUK STATUS TOMBOL CHECK-IN
   const [isCheckedIn, setIsCheckedIn] = useState(false);
+
+  // 3. STATE UNTUK JAM DIGITAL
   const [currentTime, setCurrentTime] = useState('Memuat jam...');
+
+  // 4. STATE & REF UNTUK CATATAN (Baru)
   const [note, setNote] = useState('');
-  const noteInputRef = useRef(null);
+  const noteInputRef = useRef(null); // Membuat "kait" kosong untuk UI
 
-  // Statistik dengan useMemo
+  // Simulasi statistik karena data dipindah ke HistoryScreen
   const attendanceStats = useMemo(() => {
-    console.log("Menghitung ulang statistik kehadiran...");
-    const presentCount = historyData.filter(item => item.status === 'Present').length;
-    const absentCount = historyData.filter(item => item.status === 'Absent').length;
-    return { totalPresent: presentCount, totalAbsent: absentCount };
-  }, [historyData]);
+    return { totalPresent: 12, totalAbsent: 2 };
+  }, []);
 
-  // Jam realtime
   useEffect(() => {
     const timer = setInterval(() => {
-      const timeString = new Date().toLocaleTimeString('id-ID', {
-        hour: '2-digit', minute: '2-digit', second: '2-digit'
-      });
-      setCurrentTime(timeString);
+      setCurrentTime(new Date().toLocaleTimeString('id-ID'));
     }, 1000);
     return () => clearInterval(timer);
   }, []);
 
-  // Handle Check In
   const handleCheckIn = () => {
-    if (isCheckedIn) return;
-
+    if (isCheckedIn) return Alert.alert({ title: "Perhatian", message: "Anda sudah Check In." });
     if (note.trim() === '') {
-      Alert.alert("Peringatan", "Catatan kehadiran wajib diisi!");
+      Alert.alert({ title: "Peringatan", message: "Catatan kehadiran wajib diisi!" });
       noteInputRef.current.focus();
       return;
     }
-
-    const now = new Date();
-    const tanggal = `${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear()}`;
-
-    const newAttendance = {
-      id: Date.now().toString(),
-      course: "Mobile Programming",
-      date: tanggal,
-      status: "Present",
-      note: note
-    };
-
-    setHistoryData([newAttendance, ...historyData]);
     setIsCheckedIn(true);
-    Alert.alert("Sukses", `Berhasil Check In pada pukul ${currentTime}`);
+    Alert.alert({ title: "Sukses", message: `Berhasil Check In pada pukul ${currentTime}` });
   };
-
-  const renderItem = ({ item }) => (
-    <View style={styles.item}>
-      <View>
-        <Text style={styles.course}>{item.course}</Text>
-        <Text style={styles.date}>{item.date}</Text>
-      </View>
-      <View style={styles.statusContainer}>
-        <Text style={item.status === "Present" ? styles.present : styles.absent}>
-          {item.status}
-        </Text>
-      </View>
-    </View>
-  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -90,10 +53,11 @@ const Home = () => {
         {/* Header */}
         <View style={styles.headerRow}>
           <Text style={styles.title}>Attendance App</Text>
+          {/* Tampilkan State Jam Digital */}
           <Text style={styles.clockText}>{currentTime}</Text>
         </View>
 
-        {/* Profil Card */}
+        {/* Student Card */}
         <View style={styles.card}>
           <View style={styles.icon}>
             <MaterialIcons name="person" size={40} color="#555" />
@@ -112,10 +76,10 @@ const Home = () => {
           <Text>08:00 - 10:00</Text>
           <Text>Lab 3</Text>
 
-          {/* Input Catatan — hanya muncul sebelum check in */}
+          {/* Fitur Baru: Kolom Input Catatan dengan useRef */}
           {!isCheckedIn && (
             <TextInput
-              ref={noteInputRef}
+              ref={noteInputRef} // <-- Menempelkan referensi ke elemen ini
               style={styles.inputCatatan}
               placeholder="Tulis catatan (cth: Hadir lab)"
               value={note}
@@ -128,11 +92,13 @@ const Home = () => {
             onPress={handleCheckIn}
             disabled={isCheckedIn}
           >
-            <Text style={styles.buttonText}>{isCheckedIn ? 'CHECKED IN' : 'CHECK IN'}</Text>
+            <Text style={styles.buttonText}>
+              {isCheckedIn ? "CHECKED IN" : "CHECK IN"}
+            </Text>
           </TouchableOpacity>
         </View>
 
-        {/* Statistik useMemo */}
+        {/* Fitur Baru: Statistik Kehadiran (Hasil useMemo) */}
         <View style={styles.statsCard}>
           <View style={styles.statBox}>
             <Text style={styles.statNumber}>{attendanceStats.totalPresent}</Text>
@@ -144,22 +110,12 @@ const Home = () => {
           </View>
         </View>
 
-        {/* Attendance History */}
-        <View style={styles.classCard}>
-          <Text style={styles.subtitle}>Attendance History</Text>
-          <FlatList
-            data={historyData}
-            keyExtractor={(item) => item.id}
-            renderItem={renderItem}
-            scrollEnabled={false}
-          />
-        </View>
-
       </ScrollView>
     </SafeAreaView>
   );
 };
 
+// Untuk Styling sama dengan kode sebelumnya.
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F5F5F5" },
   content: { padding: 20, paddingBottom: 40 },
@@ -205,15 +161,6 @@ const styles = StyleSheet.create({
   buttonActive: { backgroundColor: "#007AFF" },
   buttonDisabled: { backgroundColor: "#A0C4FF" },
   buttonText: { color: "white", fontWeight: "bold" },
-  item: { 
-    flexDirection: "row", justifyContent: "space-between", 
-    paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#eee' 
-  },
-  statusContainer: { flexDirection: "row", alignItems: "center" },
-  course: { fontSize: 16 },
-  date: { fontSize: 12, color: "gray" },
-  present: { color: "green", fontWeight: "bold" },
-  absent: { color: "red", fontWeight: "bold" },
 });
 
-export default Home;
+export default HomeScreen;
